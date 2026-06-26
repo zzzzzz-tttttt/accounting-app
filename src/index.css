@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #e8f5ee;
+  color: #1a5c38;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
