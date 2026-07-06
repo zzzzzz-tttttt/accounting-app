@@ -7,9 +7,11 @@ export function formatDate(dateStr) {
   const now = new Date()
   const today = now.toDateString()
   const yesterday = new Date(now - 86400000).toDateString()
+  const thisYear = now.getFullYear()
   if (d.toDateString() === today) return "今天"
   if (d.toDateString() === yesterday) return "昨天"
-  return `${d.getMonth() + 1}月${d.getDate()}日`
+  if (d.getFullYear() === thisYear) return `${d.getMonth() + 1}月${d.getDate()}日`
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
 }
 
 export function formatFullDate(dateStr) {

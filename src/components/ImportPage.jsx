@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
-import { Upload, Loader, CheckCircle, XCircle, Image, FileText } from 'lucide-react'
-import { createWorker } from 'tesseract.js'
+import { Upload, Loader, CheckCircle, XCircle, Image, FileText, Mic, MicOff } from 'lucide-react'
 import { CATEGORIES, INCOME_CATEGORIES } from '../utils/categories'
 
 const ALL_TAGS = [
@@ -119,43 +118,16 @@ function parseCSV(text) {
   return results
 }
 
-// 图片转 base64
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = e => resolve(e.target.result.split(',')[1])
-    reader.onerror = reject
-    reader.readAsDataURL(file)
+// 调用本地后端 AI 识别
+async function ocrWithBackend(imageFile) {
+  const formData = new FormData()
+  formData.append('image', imageFile)
+  const res = await fetch('http://localhost:3001/api/ocr', {
+    method: 'POST',
+    body: formData,
+    signal: AbortSignal.timeout(60000),
   })
-}
-
-// 服务端 AI 识别（走 pod 上的代理服务）
-async function ocrWithServer(base64, mimeType) {
-  try {
-    const res = await fetch(`http://10.40.123.165:8099/api/ocr`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64, mimeType }),
-      signal: AbortSignal.timeout(20000)
-    })
-    return await res.json()
-  } catch {
-    return { ok: false, fallback: true }
-  }
-}
-
-// Tesseract.js 本地 OCR
-async function ocrWithTesseract(imageFile, onProgress) {
-  const worker = await createWorker('chi_sim+eng', 1, {
-    logger: m => {
-      if (m.status === 'recognizing text') {
-        onProgress(Math.round(m.progress * 100))
-      }
-    }
-  })
-  const { data: { text } } = await worker.recognize(imageFile)
-  await worker.terminate()
-  return text
+  return await res.json()
 }
 
 export default function ImportPage({ onImport }) {
@@ -166,9 +138,10 @@ export default function ImportPage({ onImport }) {
   const [parsed, setParsed] = useState(null)
   const [loading, setLoading] = useState(false)
   const [loadingMsg, setLoadingMsg] = useState('')
-  const [ocrProgress, setOcrProgress] = useState(0)
+  const [errorMsg, setErrorMsg] = useState('')
   const [selected, setSelected] = useState(new Set())
   const [done, setDone] = useState(false)
+  const [listening, setListening] = useState(false)
   const fileRef = useRef()
   const imgRef = useRef()
 
@@ -194,6 +167,48 @@ export default function ImportPage({ onImport }) {
     setImagePreview(url)
   }
 
+  // 语音识别
+  function startVoice() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      alert('当前浏览器不支持语音识别，请用 Chrome 或 Edge')
+      return
+    }
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'zh-CN'
+    recognition.interimResults = false
+    recognition.continuous = false
+
+    setListening(true)
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript
+      setText(prev => prev + transcript)
+      setParsed(null)
+      setDone(false)
+    }
+    recognition.onerror = () => setListening(false)
+    recognition.onend = () => setListening(false)
+    recognition.start()
+  }
+
+  // 支持 Ctrl+V 粘贴截图
+  function handlePaste(e) {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const blob = item.getAsFile()
+        setImageFile(blob)
+        setParsed(null)
+        setDone(false)
+        const url = URL.createObjectURL(blob)
+        setImagePreview(url)
+        return
+      }
+    }
+  }
+
   async function handleParseText() {
     if (!text.trim()) return
     setLoading(true); setDone(false)
@@ -209,31 +224,21 @@ export default function ImportPage({ onImport }) {
 
   async function handleParseImage() {
     if (!imageFile) return
-    setLoading(true); setDone(false); setOcrProgress(0)
+    setLoading(true); setDone(false)
     try {
-      // 先尝试服务端 AI 识别
       setLoadingMsg('正在用 AI 识别图片...')
-      const base64 = await fileToBase64(imageFile)
-      const serverResult = await ocrWithServer(base64, imageFile.type)
+      const result = await ocrWithBackend(imageFile)
 
-      let ocrText = ''
-      if (serverResult.ok && serverResult.text) {
-        ocrText = serverResult.text
-        setLoadingMsg('AI 识别完成，解析中...')
+      if (result.ok && result.transactions?.length > 0) {
+        setParsed(result.transactions)
+        setSelected(new Set(result.transactions.map((_, i) => i)))
+        setErrorMsg('')
       } else {
-        // 降级到 Tesseract
-        setLoadingMsg('正在本地 OCR 识别...')
-        ocrText = await ocrWithTesseract(imageFile, p => {
-          setOcrProgress(p)
-          setLoadingMsg(`本地 OCR 识别中 ${p}%...`)
-        })
+        setParsed([])
+        setErrorMsg(result.error || result.raw || 'AI 未识别到交易记录')
       }
-
-      const results = parseText(ocrText)
-      setParsed(results)
-      setSelected(new Set(results.map((_, i) => i)))
     } finally {
-      setLoading(false); setLoadingMsg(''); setOcrProgress(0)
+      setLoading(false); setLoadingMsg('')
     }
   }
 
@@ -278,12 +283,20 @@ export default function ImportPage({ onImport }) {
       {mode === 'text' && (
         <div className="rounded-2xl p-4 mb-3" style={card}>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs" style={{color:'#9cbfab'}}>粘贴账单内容</p>
-            <button onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg"
-              style={{background:'#e8f5ee', color:'#2d8a57'}}>
-              <Upload size={12} /> 上传文件
-            </button>
+            <p className="text-xs" style={{color:'#9cbfab'}}>粘贴账单内容 或 口述</p>
+            <div className="flex items-center gap-2">
+              <button onClick={startVoice} disabled={listening}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors"
+                style={listening ? {background:'#fee2e2', color:'#e74c3c'} : {background:'#e8f5ee', color:'#2d8a57'}}>
+                {listening ? <MicOff size={12} /> : <Mic size={12} />}
+                {listening ? '聆听中...' : '语音'}
+              </button>
+              <button onClick={() => fileRef.current?.click()}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg"
+                style={{background:'#e8f5ee', color:'#2d8a57'}}>
+                <Upload size={12} /> 上传文件
+              </button>
+            </div>
             <input ref={fileRef} type="file" accept=".txt,.csv,.tsv" className="hidden" onChange={handleTextFile} />
           </div>
           <textarea value={text} onChange={e => { setText(e.target.value); setParsed(null); setDone(false) }}
@@ -295,8 +308,8 @@ export default function ImportPage({ onImport }) {
 
       {/* 图片模式 */}
       {mode === 'image' && (
-        <div className="rounded-2xl p-4 mb-3" style={card}>
-          <p className="text-xs mb-3" style={{color:'#9cbfab'}}>上传账单截图（支付宝、微信、银行账单）</p>
+        <div className="rounded-2xl p-4 mb-3" style={card} onPaste={handlePaste} tabIndex={0}>
+          <p className="text-xs mb-3" style={{color:'#9cbfab'}}>上传账单截图，或 Ctrl+V 粘贴剪贴板截图</p>
           {imagePreview ? (
             <div className="relative">
               <img src={imagePreview} alt="预览" className="w-full rounded-xl object-contain max-h-64" />
@@ -315,17 +328,6 @@ export default function ImportPage({ onImport }) {
             </button>
           )}
           <input ref={imgRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
-
-          {loading && ocrProgress > 0 && (
-            <div className="mt-3">
-              <div className="flex justify-between text-xs mb-1" style={{color:'#7ab894'}}>
-                <span>{loadingMsg}</span><span>{ocrProgress}%</span>
-              </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{background:'#e8f5ee'}}>
-                <div className="h-full rounded-full transition-all" style={{width:`${ocrProgress}%`, background:'#1a5c38'}} />
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -359,6 +361,7 @@ export default function ImportPage({ onImport }) {
             <div className="py-8 text-center rounded-2xl" style={card}>
               <XCircle size={32} className="mx-auto mb-2" style={{color:'#a8c4b0'}} />
               <p className="text-sm" style={{color:'#a8c4b0'}}>未识别到账单，请尝试图片更清晰或手动粘贴文本</p>
+              {errorMsg && <p className="text-xs mt-2 px-3 py-2 rounded-lg" style={{background:'#fff3f3', color:'#c0392b', wordBreak:'break-all'}}>原因：{errorMsg}</p>}
             </div>
           ) : (
             <>

@@ -1,22 +1,42 @@
-import { useState, useRef } from 'react'
-import LockScreen from './components/LockScreen'
+import { useState, useRef, useEffect } from 'react'
+import LoginPage from './components/LoginPage'
 import TabBar from './components/TabBar'
 import HomePage from './components/HomePage'
 import AddPage from './components/AddPage'
 import BillPage from './components/BillPage'
 import StatsPage from './components/StatsPage'
-import ImportPage from './components/ImportPage'
+import SettingsModal from './components/SettingsModal'
 import { useTransactions } from './hooks/useTransactions'
-import { exportData, importData, loadTransactions } from './utils/storage'
-import { Download, Upload, X } from 'lucide-react'
+import { exportData, importData } from './utils/storage'
+import { supabase } from './supabase'
+import { Download, Upload, X, Key, LogOut } from 'lucide-react'
 
 export default function App() {
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('app_unlocked') === '1')
+  const [user, setUser] = useState(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [tab, setTab] = useState('home')
   const [editTx, setEditTx] = useState(null)
   const [showMenu, setShowMenu] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState('')
   const { transactions, add, update, remove, loaded } = useTransactions()
+
+  // 检查登录状态
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user || null)
+      setAuthChecked(true)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user || null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
   const backupRef = useRef()
 
   function showToast(msg) {
@@ -70,7 +90,13 @@ export default function App() {
     setShowMenu(false)
   }
 
-  if (!unlocked) return <LockScreen onUnlock={() => setUnlocked(true)} />
+  if (!authChecked) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#e8f5ee' }}>
+      <div style={{ textAlign: 'center' }}><div style={{ fontSize: 32, marginBottom: 8 }}>🌿</div><p style={{ color: '#7ab894', fontSize: 14 }}>加载中...</p></div>
+    </div>
+  }
+
+  if (!user) return <LoginPage onLogin={() => {}} />
 
   return (
     <div style={{background:'#e8f5ee', minHeight:'100vh', maxWidth:430, margin:'0 auto', position:'relative'}}>
@@ -89,6 +115,7 @@ export default function App() {
       )}
 
       {/* 备份菜单弹窗 */}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showMenu && (
         <div style={{position:'fixed',inset:0,zIndex:200,background:'rgba(15,61,36,0.4)'}}
           onClick={() => setShowMenu(false)}>
@@ -98,8 +125,13 @@ export default function App() {
             boxShadow:'0 8px 32px rgba(26,92,56,0.2)', minWidth:180
           }} onClick={e => e.stopPropagation()}>
             <div style={{padding:'12px 16px', borderBottom:'1px solid #e8f5ee'}}>
-              <p style={{fontSize:12, color:'#9cbfab', margin:0}}>数据管理</p>
+              <p style={{fontSize:12, color:'#9cbfab', margin:0}}>{user?.email || '已登录'}</p>
             </div>
+            <button onClick={() => { setShowSettings(true); setShowMenu(false) }}
+              style={{width:'100%', padding:'12px 16px', display:'flex', alignItems:'center', gap:10, background:'none', border:'none', cursor:'pointer'}}>
+              <Key size={18} color="#1a5c38" />
+              <span style={{fontSize:14, color:'#1a5c38', fontWeight:500}}>API 设置</span>
+            </button>
             <button onClick={handleExport}
               style={{width:'100%', padding:'12px 16px', display:'flex', alignItems:'center', gap:10, background:'none', border:'none', cursor:'pointer'}}>
               <Download size={18} color="#1a5c38" />
@@ -111,6 +143,13 @@ export default function App() {
               <span style={{fontSize:14, color:'#1a5c38', fontWeight:500}}>恢复备份</span>
             </button>
             <input ref={backupRef} type="file" accept=".json" style={{display:'none'}} onChange={handleImportBackup} />
+            <div style={{borderTop:'1px solid #e8f5ee'}}>
+              <button onClick={handleLogout}
+                style={{width:'100%', padding:'12px 16px', display:'flex', alignItems:'center', gap:10, background:'none', border:'none', cursor:'pointer'}}>
+                <LogOut size={18} color="#c0392b" />
+                <span style={{fontSize:14, color:'#c0392b', fontWeight:500}}>退出登录</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -135,10 +174,9 @@ export default function App() {
       ) : (
         <>
           {tab === 'home' && <HomePage transactions={transactions} onAdd={() => { setEditTx(null); setTab('add') }} onEdit={handleEdit} onDelete={handleDelete} />}
-          {tab === 'add' && <AddPage onSave={handleSave} editTx={editTx} onCancel={() => { setEditTx(null); setTab('home') }} />}
+          {tab === 'add' && <AddPage onSave={handleSave} editTx={editTx} onCancel={() => { setEditTx(null); setTab('home') }} transactions={transactions} onUpdate={update} onDelete={handleDelete} />}
           {tab === 'bill' && <BillPage transactions={transactions} onEdit={handleEdit} onDelete={handleDelete} />}
           {tab === 'stats' && <StatsPage transactions={transactions} />}
-          {tab === 'import' && <ImportPage onImport={handleBatchImport} />}
           <TabBar active={tab} onChange={(t) => { if (t !== 'add') setEditTx(null); setTab(t) }} />
         </>
       )}

@@ -1,11 +1,10 @@
-import { Home, PlusCircle, List, BarChart2, Upload } from 'lucide-react'
+import { Home, PlusCircle, List, BarChart2 } from 'lucide-react'
 
 const tabs = [
   { id: 'home', label: '首页', Icon: Home },
   { id: 'add', label: '记账', Icon: PlusCircle },
   { id: 'bill', label: '账单', Icon: List },
   { id: 'stats', label: '统计', Icon: BarChart2 },
-  { id: 'import', label: '导入', Icon: Upload },
 ]
 
 export default function TabBar({ active, onChange }) {
