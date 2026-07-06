@@ -19,7 +19,6 @@
     "express": "^5.1.0",
     "lucide-react": "^1.21.0",
     "multer": "^2.0.1",
-    "openai": "^6.9.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

@@ -1,0 +1,175 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: advanced-chat
+  name: 账单智能纠错
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/siliconflow:0.0.56@146782fa473203f20f37169c191d706f9afc8b75606eeaba965f70800e8d606d
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 50
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: llm
+      id: 1782896389515-llm
+      source: '1782896389515'
+      sourceHandle: source
+      target: llm
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: llm
+        targetType: answer
+      id: llm-answer
+      source: llm
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        title: 用户输入
+        type: start
+        variables: []
+      height: 73
+      id: '1782896389515'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-ai/DeepSeek-V3
+          provider: langgenius/siliconflow/siliconflow
+        prompt_template:
+        - role: system
+          text: "你是一个账单纠错助手。用户会告诉你哪条账单记录需要修改。\n\n\
+            你可以查询用户最近的账单记录，帮助用户找到对应的记录并修改分类或金额。\n\n\
+            ⚠ 分类标签只能是以下之一：\n\
+            支出类：餐饮、水果零食、买菜、烟酒、购物、穿搭美容、生活日用、家居家电、交通、爱车、酒店旅行、休闲娱乐、网络虚拟、运动、住房、生活服务、养娃、宠物、人情社交、发红包、学习教育、医疗保健、金融保险、转账、公益、其他\n\
+            收入类：工资薪资、奖金、兼职收入、投资收益、其他收入\n\n\
+            当用户说要修改某条记录时：\n\
+            1. 先从对话历史或用户描述中找到对应记录的特征（金额、时间、备注）\n\
+            2. 如果能明确确认是哪条记录，告诉用户你要修改的内容，并返回以下格式：\n\
+               ACTION: UPDATE\n   ID: [记录id]\n   FIELD: [tag或amount]\n   VALUE: [新值]\n\
+            3. 如果无法确认是哪条，向用户询问更多信息\n\n当用户只是聊天或询问时，正常回复。\n"
+        selected: true
+        title: LLM
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: llm
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#llm.text#}}'
+        title: 直接回复
+        type: answer
+        variables: []
+      height: 103
+      id: answer
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1
+  rag_pipeline_variables: []

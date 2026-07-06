@@ -8,9 +8,16 @@
 
 ## 后端 OCR 服务
 - `server/index.js` — Express（localhost:3001）
-- 调用硅基流动视觉模型识别账单截图
-- 模型：`Qwen/Qwen3-VL-32B-Instruct`
-- API 配置在 `.env` 文件中（不提交 Git）
+- 调用 Dify 工作流 API 做 AI 处理（OCR、文字解析、纠错）
+- Dify API 配置在 `.env` 文件中（不提交 Git）
+- 三个 Dify 工作流 YAML 见 `dify/` 目录
+
+## AI 架构（全部走 Dify）
+| 功能 | Dify 工作流 | 调用方式 |
+|------|------------|---------|
+| 图片/语音/文字记账 | 多模态记账 | App → server → Dify → 返回 JSON |
+| 账单统计+分析 | 账单统计 | App 传交易数据 → Dify 分析 |
+| 账单修改纠错 | 账单智能纠错 | App 传对话 → Dify 聊天 |
 
 ## 启动
 ```bash

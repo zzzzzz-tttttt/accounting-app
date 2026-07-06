@@ -2,7 +2,6 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import multer from 'multer'
-import OpenAI from 'openai'
 
 const app = express()
 app.use(cors())
@@ -10,16 +9,12 @@ app.use(express.json({ limit: '20mb' }))
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
 
-const DEFAULT_API_KEY = process.env.SILICONFLOW_API_KEY
-const VISION_MODEL = process.env.VISION_MODEL || 'Qwen/Qwen3-VL-32B-Instruct'
-const TEXT_MODEL = process.env.TEXT_MODEL || 'deepseek-ai/DeepSeek-V3'
+// Dify 配置
+const DIFY_API_URL = process.env.DIFY_API_URL || 'https://api.dify.ai/v1'
+const DIFY_ACCOUNTING_KEY = process.env.DIFY_ACCOUNTING_KEY || ''
+const DIFY_CORRECTION_KEY = process.env.DIFY_CORRECTION_KEY || ''
 
-function getClient(apiKey) {
-  const key = apiKey || DEFAULT_API_KEY
-  if (!key) throw new Error('未配置 API Key')
-  return new OpenAI({ apiKey: key, baseURL: 'https://api.siliconflow.cn/v1' })
-}
-
+// 分类映射表（由 App 自己维护，不靠 AI）
 const CATEGORY_MAP = {
   '餐饮': { superCat: '吃喝', emoji: '🍚' },
   '水果零食': { superCat: '吃喝', emoji: '🍎' },
@@ -61,107 +56,156 @@ function enrichTransactions(transactions) {
   })
 }
 
-function extractJSON(raw) {
-  let jsonStr = raw.trim()
-  const m = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (m) jsonStr = m[1].trim()
-  let parsed
-  try { parsed = JSON.parse(jsonStr) } catch {
-    parsed = JSON.parse(jsonStr.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']'))
+// ===== Dify API 封装 =====
+
+async function callDifyWorkflow(inputs, apiKey) {
+  const res = await fetch(`${DIFY_API_URL}/workflows/run`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      inputs,
+      response_mode: 'blocking',
+      user: 'accounting-app',
+    }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Dify 响应 ${res.status}: ${text}`)
   }
-  return parsed
+  return res.json()
+}
+
+async function uploadFileToDify(buffer, filename, mimeType) {
+  // 手动构建 multipart/form-data，无需额外依赖
+  const boundary = '----DifyUpload' + Math.random().toString(36).slice(2)
+  const encoder = new TextEncoder()
+  const parts = [
+    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
+    buffer,
+    `\r\n--${boundary}\r\nContent-Disposition: form-data; name="user"\r\n\r\naccounting-app\r\n--${boundary}--\r\n`,
+  ]
+  const body = new Uint8Array(
+    parts.reduce((acc, p) => acc + (typeof p === 'string' ? encoder.encode(p).length : p.length), 0)
+  )
+  let offset = 0
+  for (const p of parts) {
+    const bytes = typeof p === 'string' ? encoder.encode(p) : new Uint8Array(p)
+    body.set(bytes, offset)
+    offset += bytes.length
+  }
+
+  const res = await fetch(`${DIFY_API_URL}/files/upload`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${DIFY_ACCOUNTING_KEY}`,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+    },
+    body,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Dify 文件上传失败 ${res.status}: ${text}`)
+  }
+  return res.json()
+}
+
+function parseDifyOutput(data) {
+  // Dify workflow 返回格式: { data: { outputs: { records: "..." } } }
+  const recordsStr = data?.data?.outputs?.records
+  if (!recordsStr) return []
+  try {
+    const parsed = JSON.parse(recordsStr)
+    return (parsed.transactions || []).map(t => ({
+      date: t.date || '',
+      amount: +t.amount || 0,
+      type: t.type === 'income' ? 'income' : 'expense',
+      tag: t.tag || '其他',
+      note: (t.note || '').slice(0, 20),
+    }))
+  } catch {
+    return []
+  }
 }
 
 // ===== OCR 截图识别 =====
 app.post('/api/ocr', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ ok: false, error: '未收到图片文件' })
-    const cli = getClient(req.body.apiKey)
-    const base64 = req.file.buffer.toString('base64')
-    const mimeType = req.file.mimetype || 'image/png'
-    const today = new Date().toISOString().split('T')[0]
-    const thisYear = new Date().getFullYear()
+    if (!DIFY_ACCOUNTING_KEY) return res.status(500).json({ ok: false, error: '未配置 DIFY_ACCOUNTING_KEY' })
 
-    const response = await cli.chat.completions.create({
-      model: VISION_MODEL,
-      messages: [
-        { role: 'system', content: `你是一个专业的记账助手。今天的日期是 ${today}。分析账单截图提取交易记录。只返回 JSON：{"transactions":[{"date":"${today}","amount":238.50,"type":"expense","tag":"餐饮","note":"海底捞"}]}。支出分类：餐饮、水果零食、买菜、烟酒、购物、穿搭美容、生活日用、家居家电、交通、爱车、酒店旅行、休闲娱乐、网络虚拟、运动、住房、生活服务、养娃、宠物、人情社交、发红包、学习教育、医疗保健、金融保险、转账、公益、其他。收入分类：工资薪资、奖金、兼职收入、投资收益、其他收入。如果不确定年份用 ${thisYear}。没有交易返回 {"transactions":[]}` },
-        { role: 'user', content: [{ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } }, { type: 'text', text: '识别这张截图中的所有交易' }] },
-      ],
-      max_tokens: 2048, temperature: 0.1,
-    })
+    // 上传图片到 Dify
+    const uploadResult = await uploadFileToDify(
+      req.file.buffer,
+      req.file.originalname || 'receipt.png',
+      req.file.mimetype || 'image/png'
+    )
 
-    const raw = response.choices?.[0]?.message?.content || ''
-    console.log('=== OCR ===', raw)
-    const parsed = extractJSON(raw)
-    const txs = (parsed.transactions || []).map(t => ({
-      date: t.date || today, amount: +t.amount || 0,
-      type: t.type === 'income' ? 'income' : 'expense',
-      tag: t.tag || '其他', note: (t.note || '').slice(0, 20),
-    }))
+    // 调用多模态记账工作流
+    const result = await callDifyWorkflow({
+      text_input: '',
+      audio_file: null,
+      image_file: {
+        transfer_method: 'local_file',
+        upload_file_id: uploadResult.id,
+        type: 'image',
+      },
+    }, DIFY_ACCOUNTING_KEY)
+
+    const txs = parseDifyOutput(result)
     res.json({ ok: true, transactions: enrichTransactions(txs) })
   } catch (err) {
     console.error('OCR error:', err.message)
-    res.status(500).json({ ok: false, error: err.status === 401 ? 'API Key 无效' : '服务内部错误' })
+    res.status(500).json({ ok: false, error: err.message })
   }
 })
 
-// ===== AI 统一入口（文字解析 + 修改命令 + 删除命令）=====
+// ===== 文字解析（创建 + 修改 + 删除）=====
 app.post('/api/parse-text', async (req, res) => {
   try {
-    const { text, transactions, apiKey } = req.body
+    const { text, transactions } = req.body
     if (!text) return res.status(400).json({ ok: false, error: '未收到文字' })
-    const cli = getClient(apiKey)
-    const today = new Date().toISOString().split('T')[0]
-    const thisYear = new Date().getFullYear()
-
-    const hasTransactions = transactions?.length > 0
-    const summary = hasTransactions
-      ? (transactions || []).slice(0, 50).map(t => ({
-          id: t.id, date: t.date, amount: t.amount, type: t.type, tag: t.tag, superCat: t.superCat, note: t.note,
-        }))
-      : []
 
     const isModifyCmd = /修改|改成|改为|换成|更新|调整|删除|去掉|移除|清除|删掉/.test(text)
 
-    const systemPrompt = isModifyCmd && hasTransactions
-      ? `记账助手。分析用户命令。今天 ${today}。\n\n如果是记录新账单，返回：{"action":"create","transactions":[{"date":"${today}","amount":58,"type":"expense","tag":"餐饮","note":"午餐"}]}\n\n如果是修改已有账单（关键词：修改、改成、改为、换成、更新），只改用户指定的字段，没提到的字段不要动！返回：{"action":"modify","modifications":[{"id":"匹配到的账单id","changes":{"tag":"餐饮"}}]}\n\n如果是删除已有账单（关键词：删除、去掉、移除），返回：{"action":"delete","deleteIds":["匹配到的账单id"]}\n\n⚠ 修改时 changes 里只放要改的字段，不要编造金额和备注！用户没说要改金额就别写amount。标签：餐饮、水果零食、买菜、烟酒、购物、穿搭美容、生活日用、家居家电、交通、爱车、酒店旅行、休闲娱乐、网络虚拟、运动、住房、生活服务、养娃、宠物、人情社交、发红包、学习教育、医疗保健、金融保险、转账、公益、其他、工资薪资、奖金、兼职收入、投资收益、其他收入。日期 YYYY-MM-DD。`
-      : `记账助手。从自然语言提取交易记录。今天 ${today}。只返回 JSON：{"action":"create","transactions":[{"date":"${today}","amount":238.50,"type":"expense","tag":"餐饮","note":"海底捞"}]}。标签：餐饮、水果零食、买菜、烟酒、购物、穿搭美容、生活日用、家居家电、交通、爱车、酒店旅行、休闲娱乐、网络虚拟、运动、住房、生活服务、养娃、宠物、人情社交、发红包、学习教育、医疗保健、金融保险、转账、公益、其他、工资薪资、奖金、兼职收入、投资收益、其他收入。没有年用 ${thisYear}。`
+    if (isModifyCmd && transactions?.length > 0 && DIFY_CORRECTION_KEY) {
+      // 修改/删除命令 → 调账单智能纠错（Chat 工作流）
+      const summary = transactions.slice(0, 50).map(t => ({
+        id: t.id, date: t.date, amount: t.amount, type: t.type, tag: t.tag, superCat: t.superCat, note: t.note,
+      }))
 
-    const userMsg = hasTransactions
-      ? `现有账单：${JSON.stringify(summary)}\n\n用户说：${text}`
-      : text
+      const result = await callDifyWorkflow({
+        query: `现有账单：${JSON.stringify(summary)}\n\n用户说：${text}`,
+      }, DIFY_CORRECTION_KEY)
 
-    const response = await cli.chat.completions.create({
-      model: TEXT_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMsg },
-      ],
-      max_tokens: 2048, temperature: 0.1,
-    })
-
-    const raw = response.choices?.[0]?.message?.content || ''
-    console.log('=== AI ===', raw)
-    const parsed = extractJSON(raw)
-
-    // 处理 transactions
-    if (parsed.transactions) {
-      parsed.transactions = enrichTransactions(parsed.transactions.map(t => ({
-        ...t, amount: +t.amount || 0,
-        type: t.type === 'income' ? 'income' : 'expense',
-        tag: t.tag || '其他', note: (t.note || '').slice(0, 20),
-      })))
+      const reply = result?.data?.outputs?.text || result?.data?.outputs?.answer || ''
+      console.log('=== 纠错回复 ===', reply)
+      res.json({ ok: true, action: 'chat', reply })
+      return
     }
 
-    res.json({ ok: true, action: parsed.action || 'create', ...parsed })
+    // 新建交易 → 调多模态记账工作流
+    if (!DIFY_ACCOUNTING_KEY) return res.status(500).json({ ok: false, error: '未配置 DIFY_ACCOUNTING_KEY' })
+
+    const result = await callDifyWorkflow({
+      text_input: text,
+      audio_file: null,
+      image_file: null,
+    }, DIFY_ACCOUNTING_KEY)
+
+    const txs = parseDifyOutput(result)
+    const enriched = enrichTransactions(txs)
+    res.json({ ok: true, action: 'create', transactions: enriched })
   } catch (err) {
     console.error('AI error:', err.message)
-    res.status(500).json({ ok: false, error: err.status === 401 ? 'API Key 无效' : '服务内部错误' })
+    res.status(500).json({ ok: false, error: err.message })
   }
 })
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`🧠 后端已启动: http://localhost:${PORT}`)
+  if (!DIFY_ACCOUNTING_KEY) console.warn('⚠ 未配置 DIFY_ACCOUNTING_KEY，AI 功能不可用')
 })
