@@ -14,13 +14,19 @@
 
 每个 YAML 作为独立 App 导入。
 
-### 2. 配置环境变量（Secrets）
+### 2. 配置环境变量
 
-⚠ 所有 API Key 已替换为占位符，**必须在 Dify 工作流设置 → 环境变量中添加**：
+导入 YAML 后，**不需要手动改任何节点**。只需在工作流设置中添加环境变量：
 
-| 变量名 | 说明 | 获取方式 |
-|--------|------|---------|
-| `SILICONFLOW_API_KEY` | 硅基流动 API Key | https://cloud.siliconflow.cn → API 密钥 |
+**在哪里设置？** 打开工作流编辑器 → 左侧边栏或右上角 ⚙️ → **环境变量（Environment Variables）**
+
+添加：
+
+| 变量名 | 值 |
+|--------|-----|
+| `SILICONFLOW_API_KEY` | `sk-gbemquwazod...`（你硅基流动的 Key） |
+
+> YAML 里已经写好了 `{{#env.SILICONFLOW_API_KEY#}}` 引用，导入后自动关联，不用逐个节点改。
 
 ### 3. 发布并获取 API Key
 

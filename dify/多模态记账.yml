@@ -335,7 +335,7 @@ workflow:
             type: text
             value: ''
           type: form-data
-        headers: 'Authorization: Bearer YOUR_SILICONFLOW_KEY'
+        headers: 'Authorization: Bearer {{#env.SILICONFLOW_API_KEY#}}'
         method: post
         params: ''
         retry_config:
@@ -591,7 +591,7 @@ workflow:
               \ {\n          \"type\": \"text\",\n          \"text\": \"请识别图片中所有消费信息，用自然语言描述，包括金额、类型、时间。只输出描述文字。\"\
               \n        }\n      ]\n    }\n  ]\n}\n\n"
           type: raw-text
-        headers: 'Authorization: Bearer YOUR_SILICONFLOW_KEY
+        headers: 'Authorization: Bearer {{#env.SILICONFLOW_API_KEY#}}
 
           Content-Type:application/json'
         method: post
