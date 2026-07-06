@@ -335,7 +335,7 @@ workflow:
             type: text
             value: ''
           type: form-data
-        headers: 'Authorization: Bearer {{SILICONFLOW_API_KEY}}'
+        headers: 'Authorization: Bearer YOUR_SILICONFLOW_KEY'
         method: post
         params: ''
         retry_config:
@@ -581,56 +581,6 @@ workflow:
           type: no-auth
         body:
           data:
-          - id: key-value-223
-            key: ''
-            type: text
-            value: '{{#17828075393963.records#}}'
-          type: raw-text
-        desc: ''
-        headers: 'apikey:{{SUPABASE_ANON_KEY}}
-
-          Authorization:Bearer {{SUPABASE_SERVICE_KEY}}
-
-          Content-Type:application/json
-
-          Prefer:return=minimal'
-        isInIteration: false
-        isInLoop: false
-        method: post
-        params: ''
-        retry_config:
-          max_retries: 3
-          retry_enabled: true
-          retry_interval: 100
-        selected: false
-        ssl_verify: true
-        timeout:
-          max_connect_timeout: 0
-          max_read_timeout: 0
-          max_write_timeout: 0
-        title: HTTP 请求 (1)
-        type: http-request
-        url: {{SUPABASE_URL}}/rest/v1/records
-        variables: []
-      height: 153
-      id: '17828075393964'
-      position:
-        x: 2450.334504498228
-        y: 314.2804855762991
-      positionAbsolute:
-        x: 2450.334504498228
-        y: 314.2804855762991
-      selected: false
-      sourcePosition: right
-      targetPosition: left
-      type: custom
-      width: 242
-    - data:
-        authorization:
-          config: null
-          type: no-auth
-        body:
-          data:
           - id: key-value-328
             key: ''
             type: text
@@ -641,7 +591,7 @@ workflow:
               \ {\n          \"type\": \"text\",\n          \"text\": \"请识别图片中所有消费信息，用自然语言描述，包括金额、类型、时间。只输出描述文字。\"\
               \n        }\n      ]\n    }\n  ]\n}\n\n"
           type: raw-text
-        headers: 'Authorization: Bearer {{SILICONFLOW_API_KEY}}
+        headers: 'Authorization: Bearer YOUR_SILICONFLOW_KEY
 
           Content-Type:application/json'
         method: post
