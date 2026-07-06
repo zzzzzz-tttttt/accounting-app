@@ -185,32 +185,21 @@ workflow:
         isInIteration: false
         isInLoop: false
         sourceType: if-else
-        targetType: http-request
-      id: 1782803597566-402a17d9-7d67-4c0f-84ba-f639b2fdf115-1782811143876-target
+        targetType: llm
+      id: 1782803597566-402a17d9-7d67-4c0f-84ba-f639b2fdf115-1782811143877-target
       source: '1782803597566'
       sourceHandle: 402a17d9-7d67-4c0f-84ba-f639b2fdf115
-      target: '1782811143876'
+      target: '1782811143877'
       targetHandle: target
       type: custom
       zIndex: 0
     - data:
         isInIteration: false
         isInLoop: false
-        sourceType: http-request
-        targetType: code
-      id: 1782811143876-source-1782811293407-target
-      source: '1782811143876'
-      sourceHandle: source
-      target: '1782811293407'
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInLoop: false
-        sourceType: code
+        sourceType: llm
         targetType: variable-aggregator
-      id: 1782811293407-source-1782804645541-target
-      source: '1782811293407'
+      id: 1782811143877-source-1782804645541-target
+      source: '1782811143877'
       sourceHandle: source
       target: '1782804645541'
       targetHandle: target
@@ -403,7 +392,7 @@ workflow:
         variables:
         - - '1782804538909'
           - text
-        - - '1782811293407'
+        - - '1782811143877'
           - text
         - - '1782803093670'
           - text_input
@@ -576,79 +565,36 @@ workflow:
       type: custom
       width: 242
     - data:
-        authorization:
-          config: null
-          type: no-auth
-        body:
-          data:
-          - id: key-value-328
-            key: ''
-            type: text
-            value: "{\n  \"model\": \"Qwen/Qwen3-VL-8B-Instruct\",\n  \"messages\"\
-              : [\n    {\n      \"role\": \"user\",\n      \"content\": [\n      \
-              \  {\n          \"type\": \"image_url\",\n          \"image_url\": {\"\
-              url\": \"{{#1782803093670.image_file.url#}}\"}\n        },\n       \
-              \ {\n          \"type\": \"text\",\n          \"text\": \"请识别图片中所有消费信息，用自然语言描述，包括金额、类型、时间。只输出描述文字。\"\
-              \n        }\n      ]\n    }\n  ]\n}\n\n"
-          type: raw-text
-        headers: 'Authorization: Bearer {{#env.SILICONFLOW_API_KEY#}}
-
-          Content-Type:application/json'
-        method: post
-        params: ''
-        retry_config:
-          max_retries: 3
-          retry_enabled: true
-          retry_interval: 100
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            max_tokens: 1024
+            temperature: 0.3
+          mode: chat
+          name: Qwen/Qwen3-VL-8B-Instruct
+          provider: langgenius/siliconflow/siliconflow
+        prompt_template:
+        - role: system
+          text: '请识别图片中所有消费和收入信息，用自然语言逐项描述（金额、类型、时间）。只输出描述文字，不要JSON。'
         selected: false
-        ssl_verify: true
-        timeout:
-          max_connect_timeout: 0
-          max_read_timeout: 0
-          max_write_timeout: 0
-        title: HTTP 请求 3
-        type: http-request
-        url: https://api.siliconflow.cn/v1/chat/completions
-        variables: []
-      height: 137
-      id: '1782811143876'
+        title: 图片识别（Vision）
+        type: llm
+        vision:
+          enabled: true
+          configs:
+            variable_selector:
+            - '1782803093670'
+            - image_file
+      height: 88
+      id: '1782811143877'
       position:
         x: 677.3781158404547
         y: 80.40450233962477
       positionAbsolute:
         x: 677.3781158404547
         y: 80.40450233962477
-      selected: false
-      sourcePosition: right
-      targetPosition: left
-      type: custom
-      width: 242
-    - data:
-        code: "import json\n\ndef main(response_body: str) -> dict:\n    data = json.loads(response_body)\n\
-          \    text = data[\"choices\"][0][\"message\"][\"content\"]\n    return {\"\
-          text\": text}\n"
-        code_language: python3
-        outputs:
-          text:
-            children: null
-            type: string
-        selected: false
-        title: 代码执行 4
-        type: code
-        variables:
-        - value_selector:
-          - '1782811143876'
-          - body
-          value_type: string
-          variable: response_body
-      height: 52
-      id: '1782811293407'
-      position:
-        x: 1016.9025026401896
-        y: 109.09962165706915
-      positionAbsolute:
-        x: 1016.9025026401896
-        y: 109.09962165706915
       selected: false
       sourcePosition: right
       targetPosition: left
