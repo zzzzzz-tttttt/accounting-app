@@ -192,19 +192,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
     setAiLoading(true)
 
     // 先用本地简单解析试试
-    let localTxs = parseText(text)
-
-    if (localTxs.length > 0) {
-      // 本地解析到，直接出结果
-      setChatMessages(prev => [...prev, {
-        role: 'assistant', action: 'create', transactions: localTxs,
-        text: `找到了 ${localTxs.length} 笔记录`
-      }])
-      setAiLoading(false)
-      return
-    }
-
-    // 本地没解析到，调用 AI 命令接口（可能是修改/删除命令）
+    // 全部走 AI（Dify），本地正则太弱，多笔/复杂输入会出错
     const result = await fetch('http://localhost:3001/api/parse-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

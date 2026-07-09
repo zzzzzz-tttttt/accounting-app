@@ -79,6 +79,27 @@ async function callDifyWorkflow(inputs, apiKey) {
   return res.json()
 }
 
+// Chat 工作流专用（账单智能纠错是 advanced-chat 模式）
+async function callDifyChat(query, apiKey) {
+  const res = await fetch(`${DIFY_API_URL}/chat-messages`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      response_mode: 'blocking',
+      user: 'accounting-app',
+    }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Dify 响应 ${res.status}: ${text}`)
+  }
+  return res.json()
+}
+
 async function uploadFileToDify(buffer, filename, mimeType) {
   // 手动构建 multipart/form-data，无需额外依赖
   const boundary = '----DifyUpload' + Math.random().toString(36).slice(2)
@@ -170,18 +191,20 @@ app.post('/api/parse-text', async (req, res) => {
     if (!text) return res.status(400).json({ ok: false, error: '未收到文字' })
 
     const isModifyCmd = /修改|改成|改为|换成|更新|调整|删除|去掉|移除|清除|删掉/.test(text)
+    const hasAmount = /\d/.test(text)  // 是否含数字
 
-    if (isModifyCmd && transactions?.length > 0 && DIFY_CORRECTION_KEY) {
+    if ((isModifyCmd || !hasAmount) && transactions?.length > 0 && DIFY_CORRECTION_KEY) {
       // 修改/删除命令 → 调账单智能纠错（Chat 工作流）
       const summary = transactions.slice(0, 50).map(t => ({
         id: t.id, date: t.date, amount: t.amount, type: t.type, tag: t.tag, superCat: t.superCat, note: t.note,
       }))
 
-      const result = await callDifyWorkflow({
-        query: `现有账单：${JSON.stringify(summary)}\n\n用户说：${text}`,
-      }, DIFY_CORRECTION_KEY)
+      const result = await callDifyChat(
+        `现有账单：${JSON.stringify(summary)}\n\n用户说：${text}`,
+        DIFY_CORRECTION_KEY
+      )
 
-      const reply = result?.data?.outputs?.text || result?.data?.outputs?.answer || ''
+      const reply = result?.answer || result?.data?.outputs?.text || ''
       console.log('=== 纠错回复 ===', reply)
       res.json({ ok: true, action: 'chat', reply })
       return
@@ -197,6 +220,7 @@ app.post('/api/parse-text', async (req, res) => {
     }, DIFY_ACCOUNTING_KEY)
 
     const txs = parseDifyOutput(result)
+    console.log('=== 文字记账 解析结果 ===', JSON.stringify(txs, null, 2))
     const enriched = enrichTransactions(txs)
     res.json({ ok: true, action: 'create', transactions: enriched })
   } catch (err) {
