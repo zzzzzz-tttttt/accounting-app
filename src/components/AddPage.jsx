@@ -162,6 +162,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
   const [showMenu, setShowMenu] = useState(false)
   const [showBatchImport, setShowBatchImport] = useState(false)
   const [showAiHistory, setShowAiHistory] = useState(false)
+  const [currentHistoryId, setCurrentHistoryId] = useState(null)  // 追踪当前加载的是哪条历史
   // 批量导入
   const [batchText, setBatchText] = useState('')
   const [batchParsed, setBatchParsed] = useState(null)
@@ -272,14 +273,30 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
     }
   }
 
-  // 保存 AI 对话到历史
+  // 保存 AI 对话到历史（同一条对话始终覆盖同一条记录）
   function saveAiHistory(msgs) {
     if (msgs.length === 0) return
     const history = JSON.parse(localStorage.getItem('ai_chat_history') || '[]')
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const recent = history.filter(h => new Date(h.time).getTime() > sevenDaysAgo)
     const preview = msgs.find(m => m.role === 'user')?.text?.slice(0, 40) || 'AI对话'
-    history.unshift({ id: 'h' + Date.now(), time: new Date().toLocaleString('zh-CN'), preview, messages: msgs })
-    if (history.length > 50) history.length = 50 // 最多50条
-    localStorage.setItem('ai_chat_history', JSON.stringify(history))
+    const now = Date.now()
+    // 如果是继续已有对话 → 更新那条记录；否则新建
+    const existingIdx = currentHistoryId ? recent.findIndex(h => h.id === currentHistoryId) : -1
+    if (existingIdx >= 0) {
+      recent[existingIdx].messages = msgs
+      recent[existingIdx].preview = preview
+      recent[existingIdx].time = new Date().toLocaleString('zh-CN')
+      // 挪到最前面
+      const [item] = recent.splice(existingIdx, 1)
+      recent.unshift(item)
+    } else {
+      const id = 'h' + now
+      setCurrentHistoryId(id)
+      recent.unshift({ id, time: new Date().toLocaleString('zh-CN'), preview, messages: msgs })
+    }
+    if (recent.length > 50) recent.length = 50
+    localStorage.setItem('ai_chat_history', JSON.stringify(recent))
   }
 
   function getAiHistory() {
@@ -294,8 +311,9 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
     setTimeout(() => setShowAiHistory(true), 0)
   }
 
-  function loadAiHistory(msgs) {
-    setChatMessages(msgs)
+  function loadAiHistory(h) {
+    setChatMessages(h.messages)
+    setCurrentHistoryId(h.id)
     setShowAiHistory(false)
     // 强制切到 AI 模式
     if (editTx) return
@@ -391,10 +409,10 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
         <div className="flex rounded-xl p-1 mb-5" style={{ background: '#d4eddf' }}>
           <button className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
             style={mode === 'manual' ? { background: '#fff', color: '#1a5c38' } : { color: '#7ab894' }}
-            onClick={() => setMode('manual')}>手动记录</button>
+            onClick={() => { setMode('manual'); setCurrentHistoryId(null) }}>手动记录</button>
           <button className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
             style={mode === 'ai' ? { background: '#fff', color: '#1a5c38' } : { color: '#7ab894' }}
-            onClick={() => setMode('ai')}>AI记录</button>
+            onClick={() => { setMode('ai'); setCurrentHistoryId(null) }}>AI记录</button>
         </div>
       )}
 
@@ -684,7 +702,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
                       <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#e8f5ee' }}>
                         <MessageCircle size={18} style={{ color: '#1a5c38' }} />
                       </div>
-                      <div className="flex-1 min-w-0" onClick={() => loadAiHistory(h.messages)}>
+                      <div className="flex-1 min-w-0" onClick={() => loadAiHistory(h)}>
                         <p className="text-sm truncate" style={{ color: '#0f3d24' }}>{h.preview}</p>
                         <p className="text-xs" style={{ color: '#9cbfab' }}>
                           <Clock size={10} className="inline mr-1" />{h.time} · {h.messages.length} 条消息
