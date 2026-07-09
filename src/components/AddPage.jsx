@@ -366,7 +366,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
               <MoreVertical size={20} />
             </button>
             {showMenu && (
-              <div className="absolute right-0 top-full mt-1 rounded-xl py-1 shadow-lg z-20" style={{ background: '#fff', minWidth: '140px', border: '1px solid #e8f5ee' }}>
+              <div className="absolute right-0 top-full mt-1 rounded-xl py-1 shadow-lg z-20" style={{ background: '#fff', minWidth: '110px', border: '1px solid #e8f5ee' }}>
                 <button onClick={() => { setShowBatchImport(true); setShowMenu(false) }}
                   className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: '#1a5c38' }}>
                   <FileText size={14} /> 粘贴文本导入
@@ -483,7 +483,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
                   style={msg.role === 'user'
                     ? { background: '#1a5c38', color: '#fff', borderBottomRightRadius: 4 }
                     : { background: '#fff', borderBottomLeftRadius: 4, boxShadow: '0 1px 4px rgba(26,92,56,0.06)' }}>
-                  {msg.image && <img src={msg.image} alt="截图" className="max-h-40 rounded-lg mb-2" />}
+                  {msg.image && <img src={msg.image} alt="截图" className="max-h-40 max-w-full rounded-lg mb-2" />}
                   <p className="text-sm">{msg.text}</p>
                   {/* create — 新交易 */}
                   {msg.role === 'assistant' && msg.action === 'create' && msg.transactions?.length > 0 && (
@@ -607,7 +607,12 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
               <button onClick={() => setShowBatchImport(false)}><X size={20} style={{ color: '#9cbfab' }} /></button>
             </div>
             <textarea value={batchText} onChange={e => { setBatchText(e.target.value); setBatchParsed(null) }}
-              placeholder="粘贴账单内容，或点右上角上传文件&#10;&#10;2024-06-15 海底捞 238元 餐饮&#10;打车 45.5 交通&#10;&#10;也支持 CSV 或支付宝/微信账单导出文本"
+              placeholder={`粘贴账单内容，或点右上角上传文件
+
+2024-06-15 海底捞 238元 餐饮
+打车 45.5 交通
+
+也支持 CSV 或支付宝/微信账单导出文本`}
               rows={6} className="w-full outline-none resize-none text-sm rounded-xl p-3 mb-3"
               style={{ background: '#f5faf7', color: '#0f3d24', border: '1px solid #d4eddf' }} />
             <button onClick={handleBatchParse} disabled={!batchText.trim() || batchLoading}

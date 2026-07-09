@@ -17,7 +17,7 @@ export default function TransactionItem({ tx, onEdit, onDelete }) {
   }, [menuOpen])
 
   return (
-    <div className="flex items-center gap-3 py-3 px-1">
+    <div className="flex items-center gap-3 py-3 px-2">
       <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0" style={{background:'#e8f5ee'}}>
         {emoji}
       </div>
@@ -35,13 +35,13 @@ export default function TransactionItem({ tx, onEdit, onDelete }) {
           ···
         </button>
         {menuOpen && (
-          <div className="absolute right-0 top-full mt-1 rounded-xl py-1 shadow-lg z-10" style={{background:'#fff', minWidth:'80px', border:'1px solid #e8f5ee'}}>
+          <div className="absolute right-0 top-full mt-1 rounded-xl py-1 shadow-lg z-10" style={{background:'#fff', minWidth:'110px', border:'1px solid #e8f5ee'}}>
             <button onClick={() => { onEdit(tx); setMenuOpen(false) }}
-              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50" style={{color:'#1a5c38'}}>
+              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 whitespace-nowrap" style={{color:'#1a5c38'}}>
               ✏️ 编辑
             </button>
             <button onClick={() => { onDelete(tx.id); setMenuOpen(false) }}
-              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50" style={{color:'#e74c3c'}}>
+              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 whitespace-nowrap" style={{color:'#e74c3c'}}>
               🗑️ 删除
             </button>
           </div>

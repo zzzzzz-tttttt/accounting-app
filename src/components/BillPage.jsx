@@ -70,7 +70,7 @@ export default function BillPage({ transactions, onEdit, onDelete }) {
       </div>
 
       {/* 时间筛选 */}
-      <div className="flex gap-2 overflow-x-auto pb-1 mb-3">
+      <div className="flex gap-2 overflow-x-auto pb-1 mb-3 scroll-smooth">
         {PERIODS.map(p => (
           <button key={p.key} onClick={() => setPeriod(p.key)}
             className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
@@ -83,10 +83,10 @@ export default function BillPage({ transactions, onEdit, onDelete }) {
       {period === 'custom' && (
         <div className="flex gap-2 mb-3">
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={{background:'#fff', color:'#0f3d24'}} />
+            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={{background:'#fff', color:'#0f3d24', border:'1px solid #d4eddf'}} />
           <span className="self-center" style={{color:'#9cbfab'}}>至</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={{background:'#fff', color:'#0f3d24'}} />
+            className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={{background:'#fff', color:'#0f3d24', border:'1px solid #d4eddf'}} />
         </div>
       )}
 

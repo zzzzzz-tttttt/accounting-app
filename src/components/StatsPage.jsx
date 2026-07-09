@@ -88,7 +88,7 @@ export default function StatsPage({ transactions }) {
 
   const barOption = {
     backgroundColor: 'transparent',
-    grid: { left:10, right:10, top:20, bottom:20, containLabel:true },
+    grid: { left:5, right:5, top:20, bottom:20, containLabel:true },
     xAxis: { type:'category', data:barData.dates, axisLabel:{fontSize:10, color:'#9cbfab'}, axisTick:{show:false}, axisLine:{lineStyle:{color:'#d4eddf'}} },
     yAxis: { type:'value', axisLabel:{fontSize:10, color:'#9cbfab', formatter:v=>`¥${v}`}, splitLine:{lineStyle:{color:'#e8f5ee'}} },
     series: [{ type:'bar', data:barData.amounts, itemStyle:{color:'#1a5c38', borderRadius:[4,4,0,0]}, barMaxWidth:30 }],

@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { X, Shield, Key } from 'lucide-react'
+import { X, Shield, Key, Eye, EyeOff } from 'lucide-react'
 import { getUserApiKey, setUserApiKey } from '../utils/api'
 
 export default function SettingsModal({ onClose }) {
   const [key, setKey] = useState(getUserApiKey)
+  const [showKey, setShowKey] = useState(false)
   const [saved, setSaved] = useState(false)
 
   function handleSave() {
@@ -42,13 +43,16 @@ export default function SettingsModal({ onClose }) {
           <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: '#f5faf7', border: '1px solid #d4eddf' }}>
             <Key size={16} style={{ color: '#9cbfab', flexShrink: 0 }} />
             <input
-              type="password"
+              type={showKey ? 'text' : 'password'}
               value={key}
               onChange={e => setKey(e.target.value)}
               placeholder="sk-xxxxxxxxxxxxxxxx"
               className="flex-1 outline-none text-sm bg-transparent"
               style={{ color: '#0f3d24' }}
             />
+            <button onClick={() => setShowKey(!showKey)} className="flex-shrink-0" style={{ color: '#9cbfab' }}>
+              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
         </div>
 
@@ -58,7 +62,7 @@ export default function SettingsModal({ onClose }) {
           {saved ? '✅ 已保存' : '保存'}
         </button>
 
-        <p className="text-xs text-center mt-3" style={{ color: '#c4dece' }}>
+        <p className="text-xs text-center mt-3" style={{ color: '#5d8a6e' }}>
           不填则使用 App 默认 Key（如果可用）
         </p>
       </div>

@@ -31,7 +31,7 @@ export default function CategoryPicker({ type, value, onChange, onClose }) {
                     <button
                       key={tag}
                       onClick={() => { onChange(tag, superCat, data.emoji); onClose() }}
-                      className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
+                      className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
                       style={{
                         background: value === tag ? '#1a5c38' : '#e8f5ee',
                         color: value === tag ? '#fff' : '#2d8a57'

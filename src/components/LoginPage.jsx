@@ -188,7 +188,7 @@ export default function LoginPage({ onLogin }) {
               onChange={e => setPassword(e.target.value)} placeholder="密码（至少6位）"
               autoComplete={isSignUp ? 'new-password' : 'current-password'}
               className="flex-1 outline-none text-sm bg-transparent" style={{ color: '#0f3d24' }} />
-            <button type="button" onClick={() => setShowPwd(!showPwd)} style={{ color: '#9cbfab' }}>
+            <button type="button" onClick={() => setShowPwd(!showPwd)} className="flex-shrink-0" style={{ color: '#9cbfab' }}>
               {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>

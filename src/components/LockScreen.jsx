@@ -60,7 +60,7 @@ export default function LockScreen({ onUnlock }) {
       </div>
 
       {/* 数字键盘 */}
-      <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, width:240}}>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, maxWidth:280, width:'80%'}}>
         {nums.map((n, i) => (
           n === '' ? <div key={i} /> :
           <button key={i} onClick={() => n !== '⌫' ? press(n) : press('⌫')}

@@ -17,8 +17,8 @@ export default function TabBar({ active, onChange }) {
           className="flex-1 flex flex-col items-center py-2 gap-0.5 transition-colors"
           style={{color: active === id ? '#1a5c38' : '#9cbfab'}}
         >
-          <Icon size={20} strokeWidth={active === id ? 2.5 : 1.8} />
-          <span className="text-[10px]">{label}</span>
+          <Icon size={22} strokeWidth={active === id ? 2.5 : 1.8} />
+          <span className="text-xs">{label}</span>
         </button>
       ))}
     </div>
