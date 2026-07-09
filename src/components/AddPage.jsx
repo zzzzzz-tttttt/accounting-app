@@ -269,7 +269,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
 
     const result = await ocrImage(file, getUserApiKey())
     if (result.ok && result.transactions?.length > 0) {
-      setChatMessages(prev => [...prev, { role: 'assistant', transactions: result.transactions, source: 'ocr', text: `识别到 ${result.transactions.length} 笔记录` }])
+      setChatMessages(prev => [...prev, { role: 'assistant', action: 'create', transactions: result.transactions, source: 'ocr', text: `识别到 ${result.transactions.length} 笔记录` }])
     } else {
       setChatMessages(prev => [...prev, { role: 'assistant', transactions: [], source: 'ocr', text: '未识别到记录：' + (result.error || '请换张更清晰的截图') }])
     }
@@ -277,7 +277,11 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
   }
 
   function importAiTransactions(transactions) {
-    transactions.forEach(t => onSave({ ...t }))
+    if (onBatchImport) {
+      onBatchImport(transactions)
+    } else {
+      transactions.forEach(t => onSave(t))
+    }
   }
 
   // 保存 AI 对话到历史

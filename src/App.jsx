@@ -174,7 +174,7 @@ export default function App() {
       ) : (
         <>
           {tab === 'home' && <HomePage transactions={transactions} onAdd={() => { setEditTx(null); setTab('add') }} onEdit={handleEdit} onDelete={handleDelete} />}
-          {tab === 'add' && <AddPage onSave={handleSave} editTx={editTx} onCancel={() => { setEditTx(null); setTab('home') }} transactions={transactions} onUpdate={update} onDelete={handleDelete} />}
+          {tab === 'add' && <AddPage onSave={handleSave} onBatchImport={handleBatchImport} editTx={editTx} onCancel={() => { setEditTx(null); setTab('home') }} transactions={transactions} onUpdate={update} onDelete={handleDelete} />}
           {tab === 'bill' && <BillPage transactions={transactions} onEdit={handleEdit} onDelete={handleDelete} />}
           {tab === 'stats' && <StatsPage transactions={transactions} />}
           <TabBar active={tab} onChange={(t) => { if (t !== 'add') setEditTx(null); setTab(t) }} />

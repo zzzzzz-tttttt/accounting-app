@@ -85,19 +85,27 @@ function clearFallback() {
 
 // ===== 保存 =====
 export async function saveTransaction(tx) {
-  const userId = await getUserId()
-  const record = { ...tx, user_id: userId }
   try {
-    const { error } = await supabase.from(TABLE).upsert(record)
-    if (error) throw error
+    const userId = await getUserId()
+    const record = { ...tx, user_id: userId }
+    try {
+      const { error } = await supabase.from(TABLE).upsert(record)
+      if (error) throw error
+    } catch (err) {
+      console.error('Supabase 保存失败:', err.message)
+      fallbackSave(tx)
+    }
   } catch (err) {
-    console.error('Supabase 保存失败:', err.message)
-    // 降级到 localStorage
-    const list = JSON.parse(localStorage.getItem('transactions_fallback') || '[]')
-    const idx = list.findIndex(t => t.id === tx.id)
-    idx >= 0 ? list.splice(idx, 1, tx) : list.unshift(tx)
-    localStorage.setItem('transactions_fallback', JSON.stringify(list))
+    console.error('Supabase 连接失败:', err.message)
+    fallbackSave(tx)
   }
+}
+
+function fallbackSave(tx) {
+  const list = JSON.parse(localStorage.getItem('transactions_fallback') || '[]')
+  const idx = list.findIndex(t => t.id === tx.id)
+  idx >= 0 ? list.splice(idx, 1, tx) : list.unshift(tx)
+  localStorage.setItem('transactions_fallback', JSON.stringify(list))
 }
 
 // ===== 删除 =====
