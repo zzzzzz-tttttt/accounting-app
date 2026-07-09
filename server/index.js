@@ -13,6 +13,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 const DIFY_API_URL = process.env.DIFY_API_URL || 'https://api.dify.ai/v1'
 const DIFY_ACCOUNTING_KEY = process.env.DIFY_ACCOUNTING_KEY || ''
 const DIFY_CORRECTION_KEY = process.env.DIFY_CORRECTION_KEY || ''
+const DIFY_STATS_KEY = process.env.DIFY_STATS_KEY || ''
 
 // 分类映射表（由 App 自己维护，不靠 AI）
 const CATEGORY_MAP = {
@@ -204,8 +205,49 @@ app.post('/api/parse-text', async (req, res) => {
   }
 })
 
+// ===== 账单统计分析 =====
+app.post('/api/stats-analysis', async (req, res) => {
+  try {
+    const { transactions, start_date, end_date } = req.body
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      return res.status(400).json({ ok: false, error: '未收到有效的交易数据' })
+    }
+    if (!DIFY_STATS_KEY) {
+      return res.status(500).json({ ok: false, error: '未配置 DIFY_STATS_KEY' })
+    }
+
+    // 精简字段，减少传输量
+    const slim = transactions.map(t => ({
+      date: t.date,
+      amount: t.amount,
+      type: t.type,
+      tag: t.tag,
+      note: t.note || '',
+    }))
+
+    const result = await callDifyWorkflow({
+      transactions_json: JSON.stringify(slim),
+      start_date: start_date || '',
+      end_date: end_date || '',
+    }, DIFY_STATS_KEY)
+
+    const outputs = result?.data?.outputs || {}
+    res.json({
+      ok: true,
+      summary: outputs.summary || '',
+      chart_data: outputs.chart_data || [],
+      output: outputs.output || '',
+    })
+  } catch (err) {
+    console.error('Stats analysis error:', err.message)
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`🧠 后端已启动: http://localhost:${PORT}`)
-  if (!DIFY_ACCOUNTING_KEY) console.warn('⚠ 未配置 DIFY_ACCOUNTING_KEY，AI 功能不可用')
+  if (!DIFY_ACCOUNTING_KEY) console.warn('⚠ 未配置 DIFY_ACCOUNTING_KEY，OCR/解析功能不可用')
+  if (!DIFY_CORRECTION_KEY) console.warn('⚠ 未配置 DIFY_CORRECTION_KEY，纠错功能不可用')
+  if (!DIFY_STATS_KEY) console.warn('⚠ 未配置 DIFY_STATS_KEY，统计分析功能不可用')
 })

@@ -148,7 +148,7 @@ workflow:
       width: 242
     - data:
         code: "import json\n\ndef main(transactions_json: str, start_date: str, end_date: str) -> dict:\n\
-          \    records = json.loads(transactions_json)\n    \n    # 按日期过滤\n    if start_date or end_date:\n\
+          \    data = json.loads(transactions_json)\n    records = data.get(\"transactions\", data) if isinstance(data, dict) else data\n    \n    # 按日期过滤\n    if start_date or end_date:\n\
           \        filtered = []\n        for r in records:\n            d = r.get(\"date\", \"\")\n\
           \            if start_date and d < start_date:\n                continue\n\
           \            if end_date and d > end_date:\n                continue\n            filtered.append(r)\n\

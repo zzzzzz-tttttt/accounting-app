@@ -4,7 +4,7 @@ app:
   icon_background: '#FFEAD5'
   icon_type: emoji
   mode: workflow
-  name: 多模态记账
+  name: 多模态记账最新可用
   use_icon_as_answer_icon: false
 dependencies:
 - current_identifier: null
@@ -16,7 +16,15 @@ kind: app
 version: 0.6.0
 workflow:
   conversation_variables: []
-  environment_variables: []
+  environment_variables:
+  - description: ''
+    id: 8745d600-d928-414d-be43-5c41fc0b110e
+    name: SILICONFLOW_API_KEY
+    selector:
+    - env
+    - SILICONFLOW_API_KEY_
+    value: ''
+    value_type: secret
   features:
     file_upload:
       allowed_file_extensions:
@@ -185,21 +193,32 @@ workflow:
         isInIteration: false
         isInLoop: false
         sourceType: if-else
-        targetType: llm
-      id: 1782803597566-402a17d9-7d67-4c0f-84ba-f639b2fdf115-1782811143877-target
+        targetType: http-request
+      id: 1782803597566-402a17d9-7d67-4c0f-84ba-f639b2fdf115-1782811143876-target
       source: '1782803597566'
       sourceHandle: 402a17d9-7d67-4c0f-84ba-f639b2fdf115
-      target: '1782811143877'
+      target: '1782811143876'
       targetHandle: target
       type: custom
       zIndex: 0
     - data:
         isInIteration: false
         isInLoop: false
-        sourceType: llm
+        sourceType: http-request
+        targetType: code
+      id: 1782811143876-source-1782811293407-target
+      source: '1782811143876'
+      sourceHandle: source
+      target: '1782811293407'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
         targetType: variable-aggregator
-      id: 1782811143877-source-1782804645541-target
-      source: '1782811143877'
+      id: 1782811293407-source-1782804645541-target
+      source: '1782811293407'
       sourceHandle: source
       target: '1782804645541'
       targetHandle: target
@@ -249,7 +268,7 @@ workflow:
           required: false
           type: file
           variable: image_file
-      height: 161
+      height: 160
       id: '1782803093670'
       position:
         x: 0
@@ -289,7 +308,7 @@ workflow:
         selected: false
         title: 条件分支
         type: if-else
-      height: 172
+      height: 171
       id: '1782803597566'
       position:
         x: 342
@@ -349,7 +368,7 @@ workflow:
       positionAbsolute:
         x: 701.7926831294274
         y: -86.08535795233313
-      selected: true
+      selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
@@ -371,7 +390,7 @@ workflow:
           - body
           value_type: string
           variable: response_body
-      height: 52
+      height: 51
       id: '1782804538909'
       position:
         x: 1071.5801375494395
@@ -392,11 +411,11 @@ workflow:
         variables:
         - - '1782804538909'
           - text
-        - - '1782811143877'
+        - - '1782811293407'
           - text
         - - '1782803093670'
           - text_input
-      height: 161
+      height: 159
       id: '1782804645541'
       position:
         x: 1352.8170782356838
@@ -427,18 +446,20 @@ workflow:
         - id: 6df1ef83-276f-4685-b392-33edf8bc76d5
           role: system
           text: "你是一个专业的记账助手。用户用自然语言描述消费或收入情况，你需要提取所有交易记录，严格按JSON数组格式输出，不要输出任何其他内容：\n\
-            \n[\n  {\n    \"amount\": 金额数字（纯数字，不含单位）,\n    \"type\": \"expense 或 income\",\n\
-            \    \"tag\": \"分类标签\",\n    \"date\": \"日期（格式：YYYY-MM-DD）\",\n    \"note\": \"备注（简短描述）\"\
-            \n  }\n]\n\n⚠ 分类标签（tag）只能是以下之一：\n\
-            支出类：餐饮、水果零食、买菜、烟酒、购物、穿搭美容、生活日用、家居家电、交通、爱车、酒店旅行、休闲娱乐、网络虚拟、运动、住房、生活服务、养娃、宠物、人情社交、发红包、学习教育、医疗保健、金融保险、转账、公益、其他\n\
-            收入类：工资薪资、奖金、兼职收入、投资收益、其他收入\n\n\
-            时间处理规则：\n- 如果用户说了完整日期，直接用\n\
-            - 如果只说了月日，年份默认今年{{#17828075393961.current_date#}}\n- 如果说了\"今天\"，填{{#17828075393961.current_date#}}\n\
-            - 如果说了\"昨天\"，填{{#17828075393961.yesterday#}}\n- 如果说了\"前天\"，填{{#17828075393961.day_before#}}\n\
-            - 如果完全没提时间，填{{#17828075393961.current_date#}}\n- 多笔交易如果没有分别说时间，全部默认今天\n\
-            - 用户在同一句话里提到的时间，后续没单独说时间的交易默认沿用同一时间\n\n\
-            示例输入：午饭35，打车28，买书69，工资8000\n\
-            示例输出：\n[\n  {\"amount\": 35, \"type\": \"expense\", \"tag\": \"餐饮\", \"date\": \"2026-06-30\", \"note\": \"午饭\"},\n  {\"amount\": 28, \"type\": \"expense\", \"tag\": \"交通\", \"date\": \"2026-06-30\", \"note\": \"打车\"},\n  {\"amount\": 69, \"type\": \"expense\", \"tag\": \"购物\", \"date\": \"2026-06-30\", \"note\": \"买书\"},\n  {\"amount\": 8000, \"type\": \"income\", \"tag\": \"工资薪资\", \"date\": \"2026-06-30\", \"note\": \"工资\"}\n]\n"
+            \n[\n  {\n    \"amount\": 金额数字（纯数字，不含单位）,\n    \"type\": \"expense 或 income\"\
+            ,\n    \"tag\": \"分类标签\",\n    \"date\": \"日期（格式：YYYY-MM-DD）\",\n    \"\
+            note\": \"备注（简短描述）\"\n  }\n]\n\n⚠ 分类标签（tag）只能是以下之一：\n支出类：餐饮、水果零食、买菜、烟酒、购物、穿搭美容、生活日用、家居家电、交通、爱车、酒店旅行、休闲娱乐、网络虚拟、运动、住房、生活服务、养娃、宠物、人情社交、发红包、学习教育、医疗保健、金融保险、转账、公益、其他\n\
+            收入类：工资薪资、奖金、兼职收入、投资收益、其他收入\n\n时间处理规则：\n- 如果用户说了完整日期，直接用\n- 如果只说了月日，年份默认今年{{#17828075393961.current_date#}}\n\
+            - 如果说了\"今天\"，填{{#17828075393961.current_date#}}\n- 如果说了\"昨天\"，填{{#17828075393961.yesterday#}}\n\
+            - 如果说了\"前天\"，填{{#17828075393961.day_before#}}\n- 如果完全没提时间，填{{#17828075393961.current_date#}}\n\
+            - 多笔交易如果没有分别说时间，全部默认今天\n- 用户在同一句话里提到的时间，后续没单独说时间的交易默认沿用同一时间\n\n示例输入：午饭35，打车28，买书69，工资8000\n\
+            示例输出：\n[\n  {\"amount\": 35, \"type\": \"expense\", \"tag\": \"餐饮\", \"\
+            date\": \"2026-06-30\", \"note\": \"午饭\"},\n  {\"amount\": 28, \"type\"\
+            : \"expense\", \"tag\": \"交通\", \"date\": \"2026-06-30\", \"note\": \"\
+            打车\"},\n  {\"amount\": 69, \"type\": \"expense\", \"tag\": \"购物\", \"\
+            date\": \"2026-06-30\", \"note\": \"买书\"},\n  {\"amount\": 8000, \"type\"\
+            : \"income\", \"tag\": \"工资薪资\", \"date\": \"2026-06-30\", \"note\": \"\
+            工资\"}\n]\n"
         - id: aa4bf369-a548-4769-a709-b74ea99b801f
           role: user
           text: '{{#1782804645541.output#}}'
@@ -447,7 +468,7 @@ workflow:
         type: llm
         vision:
           enabled: false
-      height: 88
+      height: 87
       id: '17828075393960'
       position:
         x: 1885.8588912979624
@@ -484,7 +505,7 @@ workflow:
         title: 代码执行 (1)
         type: code
         variables: []
-      height: 52
+      height: 51
       id: '17828075393961'
       position:
         x: 1616.7665561953947
@@ -510,7 +531,7 @@ workflow:
         selected: false
         title: 输出
         type: end
-      height: 89
+      height: 88
       id: '17828075393962'
       position:
         x: 2781.236940686245
@@ -527,13 +548,13 @@ workflow:
         code: "import json\n\ndef main(llm_output: str) -> dict:\n    data = json.loads(llm_output)\n\
           \    # 兼容单条和多条\n    if isinstance(data, dict):\n        data = [data]\n\
           \    # 标准化字段，确保每个交易都有完整的字段\n    transactions = []\n    for item in data:\n\
-          \        transactions.append({\n            \"date\": item.get(\"date\", item.get(\"time\", \"\")),\n\
-          \            \"amount\": float(item.get(\"amount\", 0)),\n\
-          \            \"type\": item.get(\"type\", \"expense\"),\n\
+          \        transactions.append({\n            \"date\": item.get(\"date\"\
+          , item.get(\"time\", \"\")),\n            \"amount\": float(item.get(\"\
+          amount\", 0)),\n            \"type\": item.get(\"type\", \"expense\"),\n\
           \            \"tag\": item.get(\"tag\", item.get(\"category\", \"其他\")),\n\
           \            \"note\": str(item.get(\"note\", \"\"))[:20]\n        })\n\
-          \    return {\n        \"records\": json.dumps({\"transactions\": transactions}, ensure_ascii=False)\n\
-          \    }\n"
+          \    return {\n        \"records\": json.dumps({\"transactions\": transactions},\
+          \ ensure_ascii=False)\n    }\n"
         code_language: python3
         desc: ''
         isInIteration: false
@@ -551,7 +572,7 @@ workflow:
           - text
           value_type: string
           variable: llm_output
-      height: 52
+      height: 51
       id: '17828075393963'
       position:
         x: 2174.6149900745277
@@ -565,43 +586,86 @@ workflow:
       type: custom
       width: 242
     - data:
-        context:
-          enabled: false
-          variable_selector: []
-        model:
-          completion_params:
-            max_tokens: 1024
-            temperature: 0.3
-          mode: chat
-          name: Qwen/Qwen3-VL-8B-Instruct
-          provider: langgenius/siliconflow/siliconflow
-        prompt_template:
-        - role: system
-          text: '请识别图片中所有消费和收入信息，用自然语言逐项描述（金额、类型、时间）。只输出描述文字，不要JSON。'
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-328
+            key: ''
+            type: text
+            value: "{\n  \"model\": \"Qwen/Qwen3-VL-8B-Instruct\",\n  \"messages\"\
+              : [\n    {\n      \"role\": \"user\",\n      \"content\": [\n      \
+              \  {\n          \"type\": \"image_url\",\n          \"image_url\": {\"\
+              url\": \"{{#1782803093670.image_file.url#}}\"}\n        },\n       \
+              \ {\n          \"type\": \"text\",\n          \"text\": \"请识别图片中所有消费信息，用自然语言描述，包括金额、类型、时间。只输出描述文字。\"\
+              \n        }\n      ]\n    }\n  ]\n}\n\n"
+          type: raw-text
+        headers: 'Authorization: Bearer {{#env.SILICONFLOW_API_KEY#}}
+
+          Content-Type:application/json'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
         selected: false
-        title: 图片识别（Vision）
-        type: llm
-        vision:
-          enabled: true
-          configs:
-            variable_selector:
-            - '1782803093670'
-            - image_file
-      height: 88
-      id: '1782811143877'
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP 请求 3
+        type: http-request
+        url: https://api.siliconflow.cn/v1/chat/completions
+        variables: []
+      height: 137
+      id: '1782811143876'
       position:
         x: 677.3781158404547
         y: 80.40450233962477
       positionAbsolute:
         x: 677.3781158404547
         y: 80.40450233962477
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\ndef main(response_body: str) -> dict:\n    data = json.loads(response_body)\n\
+          \    text = data[\"choices\"][0][\"message\"][\"content\"]\n    return {\"\
+          text\": text}\n"
+        code_language: python3
+        outputs:
+          text:
+            children: null
+            type: string
+        selected: false
+        title: 代码执行 4
+        type: code
+        variables:
+        - value_selector:
+          - '1782811143876'
+          - body
+          value_type: string
+          variable: response_body
+      height: 51
+      id: '1782811293407'
+      position:
+        x: 1016.9025026401896
+        y: 109.09962165706915
+      positionAbsolute:
+        x: 1016.9025026401896
+        y: 109.09962165706915
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     viewport:
-      x: -694.8256960194926
-      y: 283.40738130977354
+      x: -870.8256960194926
+      y: 223.63390066758117
       zoom: 0.45303871561520304
   rag_pipeline_variables: []

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { CATEGORIES } from '../utils/categories'
 import { formatAmount } from '../utils/formatters'
@@ -26,12 +26,37 @@ const CHART_COLORS = ['#1a5c38','#2d8a57','#3da66b','#5fd68a','#a8dbbe','#7ab894
 export default function StatsPage({ transactions }) {
   const [period, setPeriod] = useState('month')
   const [drillCat, setDrillCat] = useState(null)
+  const [aiOutput, setAiOutput] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const requestIdRef = useRef(0)
 
   const { start, end } = getRange(period)
   const filtered = useMemo(() =>
     transactions.filter(tx => { const d = new Date(tx.date); return d >= start && d <= end }),
     [transactions, start, end]
   )
+
+  // AI 分析：筛选数据或周期变化时自动请求
+  useEffect(() => {
+    if (filtered.length === 0) { setAiOutput(''); return }
+    const currentReq = ++requestIdRef.current
+    setAiLoading(true)
+    const startStr = start.toISOString().slice(0, 10)
+    const endStr = end.toISOString().slice(0, 10)
+    fetch('http://localhost:3001/api/stats-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions: filtered, start_date: startStr, end_date: endStr }),
+      signal: AbortSignal.timeout(30000),
+    }).then(r => r.json()).then(result => {
+      if (requestIdRef.current !== currentReq) return
+      setAiLoading(false)
+      if (result.ok) setAiOutput(result.output || '')
+    }).catch(err => {
+      if (requestIdRef.current !== currentReq) return
+      setAiLoading(false)
+    })
+  }, [filtered, start, end])
 
   const expenses = filtered.filter(t => t.type === 'expense')
   const totalExpense = expenses.reduce((s,t) => s+t.amount, 0)
@@ -108,6 +133,29 @@ export default function StatsPage({ transactions }) {
           </div>
         ))}
       </div>
+
+      {/* AI 分析卡片 */}
+      {(aiOutput || aiLoading) && (
+        <div className="p-4 mb-4" style={{
+          ...card,
+          background: 'linear-gradient(135deg, #f0f7f3 0%, #fff 100%)',
+          border: '1px solid #d4eddf',
+        }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">🤖</span>
+            <span className="text-sm font-semibold" style={{ color: '#1a5c38' }}>AI 分析</span>
+          </div>
+          {aiLoading ? (
+            <div className="space-y-2">
+              <div className="h-3 rounded-full animate-pulse" style={{ background: '#e0efe6', width: '90%' }} />
+              <div className="h-3 rounded-full animate-pulse" style={{ background: '#e0efe6', width: '75%' }} />
+              <div className="h-3 rounded-full animate-pulse" style={{ background: '#e0efe6', width: '60%' }} />
+            </div>
+          ) : (
+            <p className="text-sm leading-relaxed" style={{ color: '#2d5a3d' }}>{aiOutput}</p>
+          )}
+        </div>
+      )}
 
       {barData.dates.length > 0 && (
         <div className="p-4 mb-4" style={card}>
