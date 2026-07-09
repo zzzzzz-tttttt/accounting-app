@@ -1,9 +1,21 @@
 import { CATEGORIES, INCOME_CATEGORIES } from '../utils/categories'
 import { X } from 'lucide-react'
-import { useState } from 'react'
+
+// 每个标签的专属 emoji
+const TAG_EMOJI = {
+  '餐饮':'🍚','水果零食':'🍎','买菜':'🥬','烟酒':'🍺',
+  '购物':'🛒','穿搭美容':'💄','生活日用':'🧴','家居家电':'🛋️',
+  '交通':'🚇','爱车':'🚗','酒店旅行':'🏨',
+  '休闲娱乐':'🎮','网络虚拟':'📱','运动':'⚽',
+  '住房':'🏡','生活服务':'📦',
+  '养娃':'👶','宠物':'🐱','人情社交':'🎁','发红包':'🧧',
+  '学习教育':'📚','医疗保健':'💊',
+  '金融保险':'💰','转账':'💳','互助保障':'🤝',
+  '公益':'❤️','其他':'📝',
+  '工资薪资':'💼','奖金':'🎉','兼职收入':'💻','投资收益':'📈','其他收入':'💵',
+}
 
 export default function CategoryPicker({ type, value, onChange, onClose }) {
-  const [expanded, setExpanded] = useState(null)
   const cats = type === 'income' ? INCOME_CATEGORIES : CATEGORIES
 
   return (
@@ -13,35 +25,37 @@ export default function CategoryPicker({ type, value, onChange, onClose }) {
           <span className="font-semibold" style={{color:'#0f3d24'}}>选择分类</span>
           <button onClick={onClose}><X size={20} style={{color:'#9cbfab'}} /></button>
         </div>
-        <div className="p-3 space-y-1">
+        <div className="p-4 space-y-4">
           {Object.entries(cats).map(([superCat, data]) => (
             <div key={superCat}>
-              <button
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors"
-                style={{background: expanded === superCat ? '#e8f5ee' : 'transparent'}}
-                onClick={() => setExpanded(expanded === superCat ? null : superCat)}
-              >
-                <span className="text-xl">{data.emoji}</span>
-                <span className="font-medium" style={{color:'#1a5c38'}}>{superCat}</span>
-                <span className="ml-auto text-sm" style={{color:'#9cbfab'}}>{expanded === superCat ? '▲' : '▼'}</span>
-              </button>
-              {expanded === superCat && (
-                <div className="flex flex-wrap gap-2 px-3 pb-3">
-                  {data.tags.map(tag => (
-                    <button
-                      key={tag}
-                      onClick={() => { onChange(tag, superCat, data.emoji); onClose() }}
-                      className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-sm">{data.emoji}</span>
+                <span className="text-xs font-medium" style={{color:'#a8c4b0'}}>{superCat}</span>
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-3">
+                {data.tags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => { onChange(tag, superCat, data.emoji); onClose() }}
+                    className="flex flex-col items-center gap-1 transition-transform active:scale-90"
+                    style={{ width: 56 }}
+                  >
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl transition-colors"
                       style={{
                         background: value === tag ? '#1a5c38' : '#e8f5ee',
-                        color: value === tag ? '#fff' : '#2d8a57'
                       }}
                     >
+                      {TAG_EMOJI[tag] || '📌'}
+                    </div>
+                    <span className="text-xs text-center leading-tight" style={{
+                      color: value === tag ? '#1a5c38' : '#5d7a6a',
+                      fontWeight: value === tag ? 600 : 400,
+                    }}>
                       {tag}
-                    </button>
-                  ))}
-                </div>
-              )}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           ))}
         </div>

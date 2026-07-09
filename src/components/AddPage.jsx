@@ -366,18 +366,18 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
               <MoreVertical size={20} />
             </button>
             {showMenu && (
-              <div className="absolute right-0 top-full mt-1 rounded-xl py-1 shadow-lg z-20" style={{ background: '#fff', minWidth: '110px', border: '1px solid #e8f5ee' }}>
+              <div className="absolute right-0 top-full mt-1 rounded-xl py-1 shadow-lg z-20" style={{ background: '#fff', minWidth: '138px', border: '1px solid #e8f5ee' }}>
                 <button onClick={() => { setShowBatchImport(true); setShowMenu(false) }}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: '#1a5c38' }}>
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap" style={{ color: '#1a5c38' }}>
                   <FileText size={14} /> 粘贴文本导入
                 </button>
                 <button onClick={() => { batchFileRef.current?.click(); setShowMenu(false) }}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: '#1a5c38' }}>
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap" style={{ color: '#1a5c38' }}>
                   <Upload size={14} /> 文件导入
                 </button>
                 <input ref={batchFileRef} type="file" accept=".txt,.csv,.tsv" className="hidden" onChange={handleBatchFile} />
                 <button onClick={() => { setShowAiHistory(true); setShowMenu(false) }}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: '#1a5c38' }}>
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap" style={{ color: '#1a5c38' }}>
                   <MessageCircle size={14} /> AI记录
                 </button>
               </div>
@@ -415,7 +415,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
               <p className="text-xs mb-2" style={{ color: '#9cbfab' }}>金额</p>
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-light" style={{ color: '#9cbfab' }}>¥</span>
-                <input type="number" inputMode="decimal" placeholder="0.00" value={amount}
+                <input type="text" inputMode="decimal" placeholder="0.00" value={amount}
                   onChange={e => setAmount(e.target.value)}
                   className="text-3xl font-bold w-full outline-none bg-transparent"
                   style={{ color: '#0f3d24' }} />
