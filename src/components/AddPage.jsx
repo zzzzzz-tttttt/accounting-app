@@ -2,14 +2,14 @@ import { useState, useRef, useEffect } from 'react'
 import CategoryPicker from './CategoryPicker'
 import { ChevronRight, Mic, MicOff, Image, Send, Loader, MoreVertical, X, FileText, Upload, MessageCircle, Clock, Trash2 } from 'lucide-react'
 import { CATEGORIES, INCOME_CATEGORIES } from '../utils/categories'
-import { getUserApiKey } from '../utils/api'
+import { parseText, ocrImage } from '../utils/api'
 
 const ALL_TAGS = [
   ...Object.entries(CATEGORIES).flatMap(([superCat, d]) => d.tags.map(tag => ({ tag, superCat, emoji: d.emoji }))),
   ...Object.entries(INCOME_CATEGORIES).flatMap(([superCat, d]) => d.tags.map(tag => ({ tag, superCat, emoji: d.emoji })))
 ]
 
-function parseText(text) {
+function parseTextLocal(text) {
   const today = new Date().toISOString().split('T')[0]
   const results = []
   const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean)
@@ -118,29 +118,7 @@ function parseCSV(text) {
   return results
 }
 
-// 调用后端 AI 文字解析
-async function aiParseText(text, apiKey) {
-  const res = await fetch('http://localhost:3001/api/parse-text', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, apiKey }),
-    signal: AbortSignal.timeout(30000),
-  })
-  return await res.json()
-}
-
-// 调用后端 OCR
-async function ocrImage(file, apiKey) {
-  const fd = new FormData()
-  fd.append('image', file)
-  fd.append('apiKey', apiKey)
-  const res = await fetch('http://localhost:3001/api/ocr', {
-    method: 'POST',
-    body: fd,
-    signal: AbortSignal.timeout(60000),
-  })
-  return await res.json()
-}
+// AI 调用已统一到 ../utils/api.js（优先 Edge Function，降级 Express）
 
 export default function AddPage({ onSave, editTx, onCancel, onBatchImport, transactions, onUpdate, onDelete }) {
   const [mode, setMode] = useState('manual') // 'manual' | 'ai'
@@ -158,6 +136,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
   const [chatMessages, setChatMessages] = useState([])
   const [aiInput, setAiInput] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
+  const [conversationId, setConversationId] = useState(null)  // Dify 对话记忆
   const [listening, setListening] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showBatchImport, setShowBatchImport] = useState(false)
@@ -192,15 +171,13 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
     setChatMessages(prev => [...prev, { role: 'user', text }])
     setAiLoading(true)
 
-    // 先用本地简单解析试试
-    // 全部走 AI（Dify），本地正则太弱，多笔/复杂输入会出错
-    const result = await fetch('http://localhost:3001/api/parse-text', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, transactions: transactions || [], apiKey: getUserApiKey() }),
-      signal: AbortSignal.timeout(30000),
-    }).then(r => r.json()).catch(() => null)
+    const result = await parseText(text, {
+      transactions: transactions || [],
+      conversationId,
+      chatHistory: chatMessages.slice(-10),
+    })
 
+    if (result?.conversation_id) setConversationId(result.conversation_id)
     if (!result?.ok) {
       setChatMessages(prev => [...prev, {
         role: 'assistant', action: 'none',
@@ -237,6 +214,11 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
         matched,
         text: `找到 ${matched.length} 条要删除的账单`
       }])
+    } else if (result.action === 'chat') {
+      setChatMessages(prev => [...prev, {
+        role: 'assistant', action: 'chat',
+        text: result.reply || '嗯嗯~'
+      }])
     } else if (result.action === 'create' && result.transactions?.length > 0) {
       setChatMessages(prev => [...prev, {
         role: 'assistant', action: 'create', transactions: result.transactions,
@@ -256,7 +238,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
     const userMsg = { role: 'user', text: '📷 上传了截图', image: URL.createObjectURL(file) }
     setChatMessages(prev => [...prev, userMsg])
 
-    const result = await ocrImage(file, getUserApiKey())
+    const result = await ocrImage(file)
     if (result.ok && result.transactions?.length > 0) {
       setChatMessages(prev => [...prev, { role: 'assistant', action: 'create', transactions: result.transactions, source: 'ocr', text: `识别到 ${result.transactions.length} 笔记录` }])
     } else {
@@ -340,7 +322,7 @@ export default function AddPage({ onSave, editTx, onCancel, onBatchImport, trans
     setBatchLoading(true)
     try {
       const isTabular = (batchText.includes(',') || batchText.includes('\t')) && batchText.split('\n')[0].split(/[,\t]/).length >= 3
-      const results = isTabular ? parseCSV(batchText) : parseText(batchText)
+      const results = isTabular ? parseCSV(batchText) : parseTextLocal(batchText)
       setBatchParsed(results)
       setBatchSelected(new Set(results.map((_, i) => i)))
     } finally { setBatchLoading(false) }

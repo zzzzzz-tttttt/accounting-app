@@ -81,18 +81,21 @@ async function callDifyWorkflow(inputs, apiKey) {
 }
 
 // Chat 工作流专用（账单智能纠错是 advanced-chat 模式）
-async function callDifyChat(query, apiKey) {
+async function callDifyChat(query, apiKey, conversationId) {
+  const body = {
+    inputs: {},
+    query,
+    response_mode: 'blocking',
+    user: 'accounting-app',
+  }
+  if (conversationId) body.conversation_id = conversationId
   const res = await fetch(`${DIFY_API_URL}/chat-messages`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      query,
-      response_mode: 'blocking',
-      user: 'accounting-app',
-    }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) {
     const text = await res.text()
@@ -188,26 +191,29 @@ app.post('/api/ocr', upload.single('image'), async (req, res) => {
 // ===== 文字解析（创建 + 修改 + 删除）=====
 app.post('/api/parse-text', async (req, res) => {
   try {
-    const { text, transactions } = req.body
+    const { text, transactions, conversation_id, chat_history } = req.body
     if (!text) return res.status(400).json({ ok: false, error: '未收到文字' })
 
     const isModifyCmd = /修改|改成|改为|换成|更新|调整|删除|去掉|移除|清除|删掉/.test(text)
     const hasAmount = /\d/.test(text)  // 是否含数字
+    const context = (chat_history || []).slice(-6).map(m => `${m.role === 'user' ? '用户' : '助手'}: ${m.text}`).join('\n')
 
-    if ((isModifyCmd || !hasAmount) && transactions?.length > 0 && DIFY_CORRECTION_KEY) {
-      // 修改/删除命令 → 调账单智能纠错（Chat 工作流）
+    // 聊天/无数字 → 纠错对话；修改命令 → 纠错；有数字 → 记账
+    const isChat = !hasAmount || isModifyCmd
+    if (isChat && DIFY_CORRECTION_KEY) {
       const summary = transactions.slice(0, 50).map(t => ({
         id: t.id, date: t.date, amount: t.amount, type: t.type, tag: t.tag, superCat: t.superCat, note: t.note,
       }))
 
       const result = await callDifyChat(
-        `现有账单：${JSON.stringify(summary)}\n\n用户说：${text}`,
-        DIFY_CORRECTION_KEY
+        `现有账单：${JSON.stringify(summary)}\n\n对话历史：\n${context}\n\n用户说：${text}`,
+        DIFY_CORRECTION_KEY,
+        conversation_id
       )
 
       const reply = result?.answer || result?.data?.outputs?.text || ''
       console.log('=== 纠错回复 ===', reply)
-      res.json({ ok: true, action: 'chat', reply })
+      res.json({ ok: true, action: 'chat', reply, conversation_id: result?.conversation_id })
       return
     }
 

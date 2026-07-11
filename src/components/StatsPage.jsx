@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { CATEGORIES } from '../utils/categories'
 import { formatAmount } from '../utils/formatters'
+import { analyzeStats } from '../utils/api'
 
 const PERIODS = [
   { key: 'week', label: '本周' },
@@ -43,12 +44,7 @@ export default function StatsPage({ transactions }) {
     setAiLoading(true)
     const startStr = start.toISOString().slice(0, 10)
     const endStr = end.toISOString().slice(0, 10)
-    fetch('http://localhost:3001/api/stats-analysis', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transactions: filtered, start_date: startStr, end_date: endStr }),
-      signal: AbortSignal.timeout(30000),
-    }).then(r => r.json()).then(result => {
+    analyzeStats(filtered, startStr, endStr).then(result => {
       if (requestIdRef.current !== currentReq) return
       setAiLoading(false)
       if (result.ok) setAiOutput(result.output || '')

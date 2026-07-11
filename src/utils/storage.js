@@ -11,9 +11,18 @@ async function getUserId() {
 // ===== 从 Supabase 加载 =====
 export async function loadTransactions() {
   try {
+    const userId = await getUserId()
+    if (!userId) {
+      // 未登录，不可能走到这里（App 有登录守卫），但兜底处理
+      console.warn('未登录，无法加载云端数据')
+      return loadFallback()
+    }
+
+    // 只查询当前用户的数据
     const { data, error } = await supabase
       .from(TABLE)
       .select('*')
+      .eq('user_id', userId)
       .order('date', { ascending: false })
 
     if (error) throw error
@@ -21,7 +30,6 @@ export async function loadTransactions() {
     // 检查本地降级数据，尝试重新上传
     const fallback = loadFallback()
     if (fallback.length > 0) {
-      const userId = await getUserId()
       const toUpload = fallback.map(tx => ({ ...tx, user_id: userId }))
       try { await supabase.from(TABLE).upsert(toUpload) } catch {}
       clearFallback()
@@ -31,14 +39,13 @@ export async function loadTransactions() {
     if (data.length === 0) {
       const old = await loadFromIndexedDB()
       if (old.length > 0) {
-        const userId = await getUserId()
         const migrated = old.map(tx => ({ ...tx, user_id: userId }))
         await supabase.from(TABLE).upsert(migrated)
         return old
       }
     }
 
-    // 合并 fallback 数据（去重）
+    // 合并 fallback 数据（去重，只保留当前用户的）
     const merged = [...data]
     for (const fb of fallback) {
       if (!merged.find(t => t.id === fb.id)) merged.unshift(fb)
@@ -46,8 +53,7 @@ export async function loadTransactions() {
     return merged
   } catch (err) {
     console.error('Supabase 加载失败，尝试本地降级:', err.message)
-    const fb = loadFallback()
-    return fb.length > 0 ? fb : await loadFromIndexedDB()
+    return loadFallback()
   }
 }
 
@@ -87,16 +93,20 @@ function clearFallback() {
 export async function saveTransaction(tx) {
   try {
     const userId = await getUserId()
+    if (!userId) {
+      fallbackSave(tx)
+      return
+    }
     const record = { ...tx, user_id: userId }
     try {
       const { error } = await supabase.from(TABLE).upsert(record)
       if (error) throw error
     } catch (err) {
-      console.error('Supabase 保存失败:', err.message)
-      fallbackSave(tx)
+      console.error('Supabase 保存失败，降级到本地:', err.message)
+      fallbackSave(record) // 存带 user_id 的，恢复时能对应到用户
     }
   } catch (err) {
-    console.error('Supabase 连接失败:', err.message)
+    console.error('获取用户信息失败，降级到本地:', err.message)
     fallbackSave(tx)
   }
 }
@@ -111,7 +121,10 @@ function fallbackSave(tx) {
 // ===== 删除 =====
 export async function deleteTransaction(id) {
   try {
-    const { error } = await supabase.from(TABLE).delete().eq('id', id)
+    const userId = await getUserId()
+    if (!userId) return
+    // 双重条件：id 匹配 + user_id 匹配，防止误删
+    const { error } = await supabase.from(TABLE).delete().eq('id', id).eq('user_id', userId)
     if (error) throw error
   } catch (err) {
     console.error('Supabase 删除失败:', err.message)

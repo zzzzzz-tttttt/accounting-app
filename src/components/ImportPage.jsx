@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Upload, Loader, CheckCircle, XCircle, Image, FileText, Mic, MicOff } from 'lucide-react'
 import { CATEGORIES, INCOME_CATEGORIES } from '../utils/categories'
+import { ocrImage } from '../utils/api'
 
 const ALL_TAGS = [
   ...Object.entries(CATEGORIES).flatMap(([superCat, d]) => d.tags.map(tag => ({ tag, superCat, emoji: d.emoji }))),
@@ -118,17 +119,7 @@ function parseCSV(text) {
   return results
 }
 
-// 调用本地后端 AI 识别
-async function ocrWithBackend(imageFile) {
-  const formData = new FormData()
-  formData.append('image', imageFile)
-  const res = await fetch('http://localhost:3001/api/ocr', {
-    method: 'POST',
-    body: formData,
-    signal: AbortSignal.timeout(60000),
-  })
-  return await res.json()
-}
+// AI 调用已统一到 ../utils/api.js
 
 export default function ImportPage({ onImport }) {
   const [mode, setMode] = useState('text') // 'text' | 'image'
@@ -227,7 +218,7 @@ export default function ImportPage({ onImport }) {
     setLoading(true); setDone(false)
     try {
       setLoadingMsg('正在用 AI 识别图片...')
-      const result = await ocrWithBackend(imageFile)
+      const result = await ocrImage(imageFile)
 
       if (result.ok && result.transactions?.length > 0) {
         setParsed(result.transactions)
